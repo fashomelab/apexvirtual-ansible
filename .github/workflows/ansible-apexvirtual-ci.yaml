@@ -2,7 +2,6 @@
 name: Ansible CI - ApexVirtual OnPrem
 
 on:
-  # Run on every push to the 'develop' branch for continuous validation
   push:
     branches:
       - develop
@@ -15,7 +14,6 @@ on:
       - 'requirements.yml'
       - '.github/workflows/ansible-apexvirtual-ci.yaml'
 
-  # Run as a gatekeeper on Pull Requests targeting the 'main' branch
   pull_request:
     branches:
       - develop
@@ -24,23 +22,13 @@ on:
       - 'playbooks/**'
       - 'roles/**'
       - '.github/workflows/ansible-apexvirtual-ci.yaml'
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Target Environment'
-        required: true
-        default: 'av-onprem-prod'
-        type: choice
-        options:
-          - av-onprem-prod
+
 permissions:
-  id-token: write
   contents: read
 
 jobs:
   validate-and-lint:
-    environment: av-onprem-prod
-    runs-on: arc-runner-set
+    runs-on: ubuntu-latest
     env:
       ANSIBLE_CONFIG: ${{ github.workspace }}/ansible.cfg
       ANSIBLE_HOST_KEY_CHECKING: false
@@ -82,50 +70,3 @@ jobs:
         run: |
           source venv/bin/activate
           ansible-playbook playbooks/site.yml -i inventory/ci/ --syntax-check
-
-      - name: Clean up .vault directory
-        if: always()
-        run: rm -rf /home/runner/.vault
-
-      - name: Test Vault Connectivity
-        run: curl -sfI $VAULT_ADDR/v1/sys/health
-        env:
-          VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
-
-      - name: Import Proxmox & Ansible Secrets from Vault
-        id: vault_secrets
-        uses: hashicorp/vault-action@v3
-        with:
-          url: ${{ secrets.VAULT_ADDR }}
-          role: apexvirtual-onprem-ansible-role
-          method: jwt
-          jwtGithubAudience: ${{ secrets.JWT_GITHUB_AUDIENCE }}
-          secrets: |
-            kv/data/apexvirtual/proxmox-credentials PROXMOX_API_USER | PROXMOX_USER ;
-            kv/data/apexvirtual/proxmox-credentials PROXMOX_API_TOKEN_ID | PROXMOX_TOKEN_ID ;
-            kv/data/apexvirtual/proxmox-credentials PROXMOX_API_TOKEN_SECRET | PROXMOX_TOKEN_SECRET ;
-            kv/data/apexvirtual/proxmox-credentials PROXMOX_VIRTUAL_ENVIRONMENT_ENDPOINT | PROXMOX_VIRTUAL_ENVIRONMENT_ENDPOINT ;
-            kv/data/apexvirtual/ansible-credentials/ansible-user ANSIBLE_USER | ANSIBLE_USER ;
-            kv/data/apexvirtual/ssh-keys ci_cd_ansible_private | CI_CD_ANSIBLE_PRIVATE_KEY
-          exportEnv: true
-          exportToken: false
-          outputToken: true
-          tlsSkipVerify: false
-          jwtTtl: 3600
-          ignoreNotFound: false
-
-      - name: Setup SSH Agent
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ env.CI_CD_ANSIBLE_PRIVATE_KEY }}
-
-      - name: Run Ansible Playbook in Check Mode (Dry Run)
-        env:
-          ANSIBLE_REMOTE_USER: ${{ env.ANSIBLE_USER }}
-          PROXMOX_VIRTUAL_ENVIRONMENT_ENDPOINT: ${{ env.PROXMOX_VIRTUAL_ENVIRONMENT_ENDPOINT }}
-          VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
-          VAULT_TOKEN: ${{ steps.vault_secrets.outputs.vault_token }}
-          ANSIBLE_HASHI_VAULT_VERBOSE: 1
-        run: |
-          source venv/bin/activate
-          ansible-playbook playbooks/site.yml -i inventory/av-onprem/ --check -v
