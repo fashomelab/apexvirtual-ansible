@@ -1,0 +1,14 @@
+---
+# This file configures ansible-lint for the project.
+
+# Exclude directories that should not be linted.
+exclude_paths:
+  - .github/
+  - .venv/
+  - venv/
+  - "**/__pycache__/"
+
+# List of rules to skip.
+# skip_list:
+#  - fqcn-builtins  # Example: allows 'service' instead of 'ansible.builtin.service'
+#  - yaml           # Example: allows lines that are too long

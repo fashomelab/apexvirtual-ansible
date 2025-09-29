@@ -1,0 +1,12 @@
+# av-onprem/inventory/group_vars/all.yml
+---
+# Monitoring configuration - variables
+prometheus_version: v3.3.1
+grafana_version: 12.0.0
+node_exporter_version: v1.9.1
+# Prometheus endpoints for the different clusters (placeholders for demo)
+kubehn_prometheus_endpoint: "http://192.168.30.200:9090"
+kubezd_prometheus_endpoint: "http://192.168.40.200:9090"
+
+# Portainer agent configuration - variables
+portainer_agent_version: 2.27.6

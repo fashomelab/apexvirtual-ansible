@@ -1,0 +1,8 @@
+# requirements.txt
+ansible-core==2.19.0
+ansible-lint==25.9.0
+proxmoxer==2.2.0
+rich==13.7.1
+jq==1.7.0
+requests==2.32.3
+hvac[parser]==2.3.0

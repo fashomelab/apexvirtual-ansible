@@ -1,0 +1,15 @@
+---
+# handlers file for node_exporter
+- name: Restart node_exporter container
+  community.docker.docker_container:
+    name: node_exporter
+    image: "prom/node-exporter:{{ node_exporter_version }}"
+    ports:
+      - "9100:9100"
+    restart_policy: always
+    state: started
+    network_mode: host
+    pid_mode: host
+    volumes:
+      - /:/host:ro,rslave
+    command: --path.rootfs=/host

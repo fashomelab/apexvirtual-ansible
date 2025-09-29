@@ -1,0 +1,48 @@
+---
+- name: Ensure UFW is installed
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+    update_cache: true
+  become: true
+  when: ansible_distribution == "Ubuntu"
+
+- name: Set UFW default policies
+  community.general.ufw:
+    state: enabled
+    policy: "{{ item.policy }}"
+    direction: "{{ item.direction }}"
+  loop:
+    - { direction: 'incoming', policy: 'deny' }
+    - { direction: 'outgoing', policy: 'allow' }
+    - { direction: 'routed', policy: 'allow' }
+  become: true
+  notify: Reload UFW
+  when: ansible_distribution == "Ubuntu"
+
+- name: Fetch UFW rules from HashiCorp Vault
+  ansible.builtin.set_fact:
+    ufw_rules_from_vault: "{{ lookup('community.hashi_vault.vault_read', 'kv/data/apexvirtual/ansible-config/ufw-rules') }}"
+  no_log: true
+
+- name: Allow essential common ports from Vault
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto | lower | default('tcp') }}"
+    comment: "{{ item.comment | default(omit) }}"
+  loop: "{{ ufw_rules_from_vault.common_ports | default([]) }}"
+  become: true
+  when: ansible_distribution == "Ubuntu"
+
+- name: Allow specific ports defined for this host/group from Vault
+  community.general.ufw:
+    rule: "{{ item.policy | lower }}"
+    port: "{{ item.port }}"
+    proto: "{{ item.proto | lower | default('tcp') }}"
+    direction: "{{ item.direction | lower | replace('incoming', 'in') | replace('outgoing', 'out') | default('in') }}"
+    src: "{{ item.src | default(omit) }}"
+    comment: "{{ item.comment }}"
+  loop: "{{ ufw_rules_from_vault.host_specific_ports | default([]) }}"
+  become: true
+  when: ansible_distribution == "Ubuntu

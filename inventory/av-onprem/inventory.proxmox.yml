@@ -1,0 +1,47 @@
+---
+# labsansible/inventory/av-onprem/inventory.proxmox.yml
+# Proxmox VE dynamic inventory configuration
+plugin: community.proxmox.proxmox
+
+# --- Caching Configuration ---
+cache: yes
+cache_timeout: 3600  # Cache for 1 hour
+cache_connection: inventory/av-onprem/cached-inventory.json
+
+# --- API Connection Details ---
+url: "{{ lookup('env', 'PROXMOX_VIRTUAL_ENVIRONMENT_ENDPOINT') }}" # Add your Proxmox VE server URL or IP address here
+validate_certs: false
+user: "{{ lookup('env', 'PROXMOX_USER') }}"
+token_id: "{{ lookup('env', 'PROXMOX_TOKEN_ID') }}"
+token_secret: "{{ lookup('env', 'PROXMOX_TOKEN_SECRET') }}"
+
+# --- Host Selection and Grouping ---
+# Get all the details for each VM, including tags
+want_facts: true
+
+# Create groups directly from the tags on each VM
+# This will create tag_kubeprod, tag_infra, tag_docker, etc.
+keyed_groups:
+  - key: proxmox_tags_parsed
+    prefix: "tag"
+    separator: "_"
+
+# Create logical groups using Jinja2 conditionals
+groups:
+  # Create a 'patching_targets' group for all VMs that are NOT tagged 'no-ansible'
+  patching_targets: "'no-ansible' not in proxmox_tags_parsed and 'buildagent' not in proxmox_tags_parsed"
+  # Create a 'kubernetes' group for all VMs tagged as part of a Kubernetes cluster
+  kubernetes: "'kubeprod' in proxmox_tags_parsed or 'kubedev' in proxmox_tags_parsed or 'kubeinfra' in proxmox_tags_parsed"
+  # Create a 'node_exporter_targets' group for VMs tagged 'infra' or 'docker'
+  node_exporter_targets: "'infra' in proxmox_tags_parsed or 'docker' in proxmox_tags_parsed"
+  # Create a 'portainer_agents' group for VMs tagged 'docker'
+  portainer_agents: "'docker' in proxmox_tags_parsed"
+  # Create a 'reverse_proxy_targets' group for VMs tagged 'web'
+  reverse_proxy: "'reverse_proxy' in proxmox_tags_parsed"
+  # Create a 'newvms' group for VMs tagged 'newvms'
+  newvms: "'newvms' in proxmox_tags_parsed"
+
+# --- Set the FQDN for connections ---
+strict_fqdn: true
+hostnames:
+  - "{{ name }}.lab.apexvirtual.internal"

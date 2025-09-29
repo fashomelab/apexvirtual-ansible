@@ -1,0 +1,8 @@
+---
+server_provision_hostname: "{{ inventory_hostname }}"
+server_provision_timezone: UTC
+server_provision_k3spackages:
+  - qemu-guest-agent
+  - net-tools
+  - neovim
+  - htop

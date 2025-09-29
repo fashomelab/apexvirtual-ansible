@@ -1,0 +1,73 @@
+---
+- name: Fetch Grafana password from Vault
+  ansible.builtin.set_fact:
+    grafana_password: "{{ lookup('community.hashi_vault.vault_read', 'kv/data/apexvirtual/ansible-credentials/grafana')['data']['data']['admin_password'] }}"
+  no_log: true
+
+- name: Create Grafana data directory
+  ansible.builtin.file:
+    path: "{{ grafana_data_dir }}"
+    state: directory
+    owner: 472
+    group: 472
+    mode: '0755'
+
+- name: Pull Grafana Docker image
+  community.docker.docker_image:
+    name: "grafana/grafana:{{ grafana_version }}"
+    source: pull
+    state: present
+
+- name: Create Docker network for monitoring
+  community.docker.docker_network:
+    name: "{{ grafana_network }}"
+    state: present
+
+- name: Create Docker volume for Grafana data
+  community.docker.docker_volume:
+    name: "{{ grafana_volume }}"
+    state: present
+    driver: local
+
+- name: Run Grafana container
+  community.docker.docker_container:
+    name: grafana
+    image: "grafana/grafana:{{ grafana_version }}"
+    state: started
+    restart_policy: always
+    network_mode: "{{ grafana_network }}"
+    ports:
+      - "3000:3000"
+    volumes:
+      - "{{ grafana_volume }}:{{ grafana_data_dir }}"
+    env:
+      GF_SECURITY_ADMIN_PASSWORD: "{{ grafana_password }}"
+
+- name: Verify Grafana is accessible
+  ansible.builtin.uri:
+    url: "http://{{ ansible_host | default('localhost') }}:3000/login"
+    status_code: 200
+    timeout: 30
+  register: grafana_health
+  retries: 3
+  delay: 5
+  until: grafana_health.status == 200
+  
+- name: Wait for Grafana to start
+  ansible.builtin.wait_for:
+    host: localhost
+    port: 3000
+    delay: 15
+    timeout: 90
+    state: started
+
+- name: Create Prometheus data source
+  community.grafana.grafana_datasource:
+    name: Prometheus
+    grafana_url: http://localhost:3000
+    grafana_user: admin
+    grafana_password: "{{ grafana_password }}"
+    ds_type: prometheus
+    ds_url: "{{ grafana_prometheus_url }}"
+    is_default: true
+    state: present

@@ -1,0 +1,14 @@
+# Group variables for all VMs in the 'docker_vms' group
+
+# Define the firewall rules we want to apply using the ufw_rules role
+ufw_common_allowed_ports:
+  - { port: "22", proto: "tcp", comment: "Allow SSH" }
+  - { port: "80", proto: "tcp", comment: "Allow HTTP" }
+  - { port: "443", proto: "tcp", comment: "Allow HTTPS" }
+
+# Define the packages for the server_provision role
+k3spackages:
+  - qemu-guest-agent
+  - net-tools
+  - neovim
+  - htop

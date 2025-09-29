@@ -1,0 +1,3 @@
+---
+docker_version: "latest"
+docker_users: ["ansible_user"]  # Default user added to docker group

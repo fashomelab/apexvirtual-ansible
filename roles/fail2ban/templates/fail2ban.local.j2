@@ -1,0 +1,5 @@
+# Templated by Ansible - Placed in /etc/fail2ban/fail2ban.local
+[Definition]
+loglevel = {{ fail2ban_loglevel | default('INFO') }}
+logtarget = {{ fail2ban_logtarget | default('/var/log/fail2ban.log') }}
+# You can add socket and pidfile if needed, though defaults are usually fine

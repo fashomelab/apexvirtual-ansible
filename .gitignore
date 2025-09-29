@@ -1,0 +1,49 @@
+# Virtual environment
+**/venv/
+**/.venv/
+
+# Python and pip-related files
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Ansible-specific exclusions
+*.retry
+*.log
+**/.ansible/
+*-inventory.json
+*.vault.yml
+*.vault.yaml
+
+# Editor and IDE files
+**/.vscode/
+**/.idea/
+*.swp
+*.swo
+*~
+
+# Local configuration files
+inventory/av-onprem/hosts.ini.local
+vault-pass.txt
+.vault_pass
+
+# Sensitive or generated files
+*.key
+*.pem
+*.crt
+*.csr
+*.srl
+cloudflare.ini
+
+# Miscellaneous
+.DS_Store
+ansible_vault_pass_file.txt
+
+# Cache and temporary files
+inventory/av-onprem/cached-inventory.json
+*.tmp
+**/.ansible_cache/

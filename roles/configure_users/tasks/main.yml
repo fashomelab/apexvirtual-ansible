@@ -1,0 +1,16 @@
+---
+# tasks file for create_user
+- name: "Ensure user exists: {{ configure_users_username }}"
+  ansible.builtin.user:
+    name: "{{ configure_users_username }}"
+    state: present
+    shell: /bin/bash
+    groups: sudo
+    append: true
+
+- name: "Set up authorized_keys for {{ configure_users_username }}"
+  ansible.posix.authorized_key:
+    user: "{{ configure_users_username }}"
+    state: present
+    key: "{{ configure_users_ssh_key }}"
+  notify: Reload SSH

@@ -1,0 +1,3 @@
+---
+configure_users_username: ansible_user
+configure_users_ssh_key: "{{ lookup('community.hashi_vault.vault_read', 'kv/data/apexvirtual/ssh-keys/ansible_user')['data']['data']['public_key'] }}"

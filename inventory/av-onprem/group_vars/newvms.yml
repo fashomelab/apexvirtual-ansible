@@ -1,0 +1,11 @@
+# av-onprem/inventory/group_vars/newvm-packages.yml
+---
+k3spackages:
+  - qemu-guest-agent
+  - net-tools
+  - neovim
+  - iperf3
+  - nfs-common
+  - open-iscsi
+  #- helm
+  - htop

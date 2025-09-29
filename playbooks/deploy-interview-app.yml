@@ -1,0 +1,50 @@
+---
+- name: Deploy the interview-app Docker Container
+  hosts: all
+  become: true
+  gather_facts: false
+  vars:
+    acr_name: "{{ lookup('env', 'ACR_NAME') | default('myacr.azurecr.io', true) }}"
+    acr_user: "{{ lookup('env', 'ACR_USER') | default('acr_user', true) }}"
+    acr_pass: "{{ lookup('env', 'ACR_PASS') | default('acr_pass', true) }}"
+    image_repo: "interview-app"
+    image_tag: "latest"
+    app_name: "interview-app"
+    app_dir: /opt/interview-app
+  tasks:
+    - name: Debug ACR variables
+      ansible.builtin.debug:
+        msg: "ACR_NAME: {{ acr_name }}, ACR_USER: {{ acr_user }}, IMAGE_REPO: {{ image_repo }}, IMAGE_TAG: {{ image_tag }}"
+    - name: Ensure Docker is installed and running
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+    - name: Log in to Azure Container Registry
+      community.docker.docker_login:
+        registry: "{{ acr_name }}"
+        username: "{{ acr_user }}"
+        password: "{{ acr_pass }}"
+    - name: Create application directory on the server
+      ansible.builtin.file:
+        path: "{{ app_dir }}"
+        state: directory
+        mode: '0755'
+    - name: Copy the docker-compose file to the server
+      ansible.builtin.copy:
+        src: ../docker-compose.yml
+        dest: "{{ app_dir }}/docker-compose.yml"
+        mode: '0644'
+    - name: Deploy application using Docker Compose
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_dir }}"
+        state: present  # Ensures idempotency
+      environment:
+        ACR_NAME: "{{ acr_name }}"
+        IMAGE_REPO: "{{ image_repo }}"
+        IMAGE_TAG: "{{ image_tag }}"
+        APP_NAME: "{{ app_name }}"
+    - name: Log out of Azure Container Registry
+      community.docker.docker_login:
+        registry: "{{ acr_name }}"
+        state: absent

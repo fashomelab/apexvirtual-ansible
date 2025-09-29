@@ -1,0 +1,7 @@
+# roles/nginx/handlers/main.yml
+---
+- name: Reload Nginx  # This name MUST match the value in 'notify:'
+  ansible.builtin.service:
+    name: nginx
+    state: reloaded
+  become: true # Add become: true as reloading services usually requires root privileges

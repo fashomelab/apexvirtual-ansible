@@ -1,0 +1,7 @@
+# roles/grafana/vars/main.yml
+---
+grafana_version: "12.0.0"
+grafana_data_dir: "/var/lib/grafana"
+grafana_network: "monitoring"
+grafana_volume: "grafana_data"
+grafana_prometheus_url: "http://stormbird.lab.apexvirtual.internal:9090"

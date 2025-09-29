@@ -1,0 +1,17 @@
+---
+# This file ONLY defines physical hardware that cannot be auto-discovered.
+all:
+  children:
+    # --- Physical hosts (Raspberry Pis) ---
+    raspberry_pis:
+      hosts:
+        apollo:
+        thunderjaw:
+        sawtooth:
+        ravager:
+        stormbird:
+
+    # --- Assign roles to specific Pis ---
+    monitoring_server:
+      hosts:
+        stormbird:
