@@ -1,0 +1,11 @@
+# roles/configure_sudoers/tasks/main.yml
+---
+- name: Ensure sudoers file exists
+  ansible.builtin.template:
+    src: automation-ansible.j2
+    dest: /etc/sudoers.d/automation-ansible
+    owner: root
+    group: root
+    mode: '0440'
+    validate: "/usr/sbin/visudo -cf %s"
+  become: true

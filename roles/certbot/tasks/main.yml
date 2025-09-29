@@ -1,0 +1,107 @@
+# roles/certbot/tasks/main.yml
+- name: Uninstall Certbot APT packages if they exist
+  ansible.builtin.apt:
+    name:
+      - certbot
+      - python3-certbot-dns-cloudflare
+    state: absent
+  become: true
+  failed_when: false # Do not fail the task even if the packages are not installed
+
+- name: Ensure snapd is installed
+  ansible.builtin.apt:
+    name: snapd
+    state: present
+  become: true
+
+- name: Install Certbot via Snap
+  community.general.snap:
+    name: certbot
+    classic: true # Required for certbot snap
+    state: present
+  become: true
+
+- name: Ensure certbot command symlink exists in /usr/bin
+  ansible.builtin.file:
+    src: /snap/bin/certbot
+    dest: /usr/bin/certbot
+    state: link
+  become: true
+
+- name: Trust Certbot snap DNS plugins
+  ansible.builtin.command: # Use command module to run snap set
+    cmd: snap set certbot trust-plugin-with-root=ok
+  become: true
+  changed_when: false # Setting configuration isn't usually treated as a change
+
+- name: Install Certbot Cloudflare DNS plugin via Snap
+  community.general.snap: # Use the snap module again
+    name: certbot-dns-cloudflare
+    state: present
+  become: true
+
+- name: Create Cloudflare directory if it does not exist
+  ansible.builtin.file:
+    path: /etc/letsencrypt/
+    state: directory
+    mode: '0755'
+  become: true
+
+- name: Create Cloudflare credentials file from vault
+  ansible.builtin.template:
+    src: cloudflare.ini.j2
+    dest: /etc/letsencrypt/cloudflare.ini
+    owner: root
+    group: root
+    mode: '0400'
+  vars:
+    cf_api_token: "{{ lookup('community.hashi_vault.vault_read', 'kv/data/apexvirtual/ansible-credentials/cloudflare')['data']['data']['api_token'] }}"
+  become: true
+  no_log: true
+
+- name: Generate domain flags for Certbot command
+  ansible.builtin.set_fact:
+    certbot_domain_flags: "{{ (['-d', cert_primary_domain] + cert_alt_names | map('regex_replace', '^(.*)$', '-d \\1') | list) | join(' ') }}"
+  # Creates a string like: -d primary.com -d alt1.com -d alt2.com
+
+- name: Obtain Let's Encrypt using Cloudflare DNS (via Snap Certbot)
+  ansible.builtin.command:
+    cmd: >
+      certbot certonly
+      --dns-cloudflare
+      --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini
+      --non-interactive
+      --agree-tos
+      --email {{ cert_email }}
+      {{ certbot_domain_flags }}
+    creates: "/etc/letsencrypt/live/{{ cert_primary_domain }}/fullchain.pem"
+  changed_when: >
+    certbot_result.rc == 0 and
+    ('Successfully received certificate' in certbot_result.stdout or
+     'Certificate is due for renewal' in certbot_result.stdout)
+  register: certbot_result
+  become: true
+  retries: 1
+  delay: 10
+
+- name: Create directory for Let's Encrypt deploy hooks
+  ansible.builtin.file:
+    path: /etc/letsencrypt/renewal-hooks/deploy
+    state: directory
+    mode: '0755'
+  become: true
+
+- name: Create Nginx reload script for Certbot deploy hook
+  ansible.builtin.copy:
+    content: |
+      #!/bin/bash
+      # Reload Nginx after certificate renewal
+      if systemctl is-active --quiet nginx; then
+        echo "Certbot hook: Reloading Nginx"
+        systemctl reload nginx
+      fi
+    dest: /etc/letsencrypt/renewal-hooks/deploy/reload_nginx.sh
+    mode: '0755'
+    owner: root
+    group: root
+  become: true

@@ -1,0 +1,136 @@
+---
+# ===================================================================
+# NGINX :: INSTALL TASKS
+# ===================================================================
+
+- name: Install Nginx prerequisites
+  ansible.builtin.apt:
+    name:
+      - apt-transport-https
+      - curl
+      - ca-certificates
+      - lsb-release
+      - gnupg2
+      - ubuntu-keyring
+    state: present
+  tags:
+    - nginx
+    - nginx_install
+
+- name: Define Nginx keyring path
+  ansible.builtin.set_fact:
+    nginx_install_keyring_path: "/usr/share/keyrings/nginx-archive-keyring.gpg"
+  tags:
+    - nginx
+    - nginx_install
+
+- name: Download Nginx signing-key
+  ansible.builtin.get_url:
+    url: https://nginx.org/keys/nginx_signing.key
+    dest: "{{ nginx_install_keyring_path }}"
+    mode: '0644'
+  tags:
+    - nginx
+    - nginx_install
+
+- name: Add Nginx Repository
+  ansible.builtin.apt_repository:
+    repo: >-
+      deb [signed-by={{ nginx_install_keyring_path }}]
+      http://nginx.org/packages/{{ 'ubuntu' if ansible_distribution == 'Ubuntu' else 'debian' }}
+      {{ ansible_lsb.codename }} nginx
+    state: present
+    filename: nginx
+  tags:
+    - nginx
+    - nginx_install
+
+- name: Install Nginx
+  ansible.builtin.apt:
+    name: nginx
+    state: present
+    update_cache: true
+  become: true
+  tags:
+    - nginx
+    - nginx_install
+
+- name: Start and enable Nginx Service
+  ansible.builtin.service:
+    name: nginx
+    state: started
+    enabled: true
+  become: true
+  tags:
+    - nginx
+    - nginx_install
+
+
+# ===================================================================
+# NGINX :: CONFIGURE TASKS
+# ===================================================================
+
+- name: Make directories for Nginx configuration
+  ansible.builtin.file:
+    path: "/etc/nginx/{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - ssl
+    - sites-available
+    - sites-enabled
+  become: true
+  tags:
+    - nginx
+    - nginx_configure
+
+- name: Deploy base Nginx configuration (nginx.conf)
+  ansible.builtin.copy:
+    src: files/defaultconf/nginx.conf
+    dest: /etc/nginx/nginx.conf
+    mode: '0644'
+  notify: Reload Nginx
+  become: true
+  tags:
+    - nginx
+    - nginx_configure
+
+- name: Deploy Nginx conf.d files
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/etc/nginx/conf.d/{{ item | basename }}"
+    mode: '0644'
+  loop: "{{ query('fileglob', 'files/conf.d/*.conf') }}"
+  notify: Reload Nginx
+  become: true
+  tags:
+    - nginx
+    - nginx_configure
+
+- name: Deploy Nginx site configurations from variables
+  ansible.builtin.template:
+    src: "{{ item.template }}"
+    dest: "/etc/nginx/sites-available/{{ item.name }}.conf"
+    mode: '0644'
+  loop: "{{ nginx_sites }}"
+  loop_control:
+    label: "{{ item.name }}"
+  notify: Reload Nginx
+  become: true
+  tags:
+    - nginx
+    - nginx_configure
+
+- name: Enable Nginx site configurations by creating symlinks
+  ansible.builtin.file:
+    src: "/etc/nginx/sites-available/{{ item.name }}.conf"
+    dest: "/etc/nginx/sites-enabled/{{ item.name }}.conf"
+    state: link
+  loop: "{{ nginx_sites }}"
+  loop_control:
+    label: "{{ item.name }}"
+  notify: Reload Nginx
+  become: true
+  tags:
+    - nginx
+    - nginx_configure

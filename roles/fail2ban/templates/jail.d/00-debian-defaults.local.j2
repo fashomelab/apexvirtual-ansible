@@ -1,0 +1,24 @@
+# Templated by Ansible - Placed in /etc/fail2ban/jail.d/00-debian-defaults.local
+
+[DEFAULT]
+# IPs that should never be banned
+ignoreip = {{ fail2ban_custom_ignoreips | join(' ') }}
+
+# Ban duration
+bantime  = {{ fail2ban_default_bantime | default('1h') }}
+
+# Window for failures
+findtime = {{ fail2ban_default_findtime | default('30m') }}
+
+# Number of failures before ban
+maxretry = {{ fail2ban_default_maxretry | default(4) }}
+
+# Default action: ban + mail with whois and logs (if email vars are set)
+action = %(action_mwl)s
+
+# Email for notifications (from Vault)
+destemail = {{ fail2ban_destemail | default('root@localhost') }}
+sender = {{ fail2ban_sender | default('fail2ban@' + ansible_fqdn) }}
+
+# Enable bantime increment for repeat offenders? (boolean)
+# bantime.increment = {{ fail2ban_bantime_increment | default(true) | lower }}

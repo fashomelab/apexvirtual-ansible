@@ -1,0 +1,6 @@
+# roles/ufw_rules/handlers/main.yml
+---
+- name: Reload UFW
+  community.general.ufw:
+    state: reloaded
+  become: true

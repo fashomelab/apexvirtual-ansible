@@ -1,0 +1,71 @@
+---
+- name: (SETUP) Gather facts from all managed hosts
+  # Targets Pis from static file AND all discovered VMs
+  hosts: raspberry_pis, patching_targets
+  gather_facts: true
+  tags: ['always']
+
+- name: Apply OS Updates to all servers
+  # Targets Pis from static file AND all discovered VMs (except adoagent)
+  hosts: raspberry_pis, patching_targets
+  serial: 1
+  gather_facts: true
+  become: true
+  roles:
+    - role: update_system
+      tags: ['update', 'patching']
+
+- name: Provision new VMs with standard packages
+  hosts: newvms # Only targets VMs with the 'newvms' tag
+  gather_facts: false
+  become: true
+  roles:
+    - role: configure_sudoers
+      tags: ['provision']
+    - role: server_provision
+      tags: ['provision']
+    - role: docker
+      tags: ['provision', 'docker']
+
+- name: Configure the central Monitoring Server
+  hosts: monitoring_server # Only targets the Pi
+  gather_facts: false
+  become: true
+  roles:
+    - role: prometheus
+      tags: ['monitoring', 'monitoring_server']
+    - role: grafana
+      tags: ['monitoring', 'monitoring_server']
+
+- name: Deploy Node Exporter to all targets
+  # Targets Pis from static file AND VMs matched by the 'groups' logic
+  hosts: raspberry_pis, node_exporter_targets
+  gather_facts: false
+  become: true
+  roles:
+    - role: node_exporter
+      tags: ['monitoring', 'node_exporter']
+
+- name: Configure Nginx Reverse Proxy
+  hosts: reverse_proxy
+  gather_facts: false
+  become: true
+  roles:
+    - role: nginx
+    - role: certbot
+      tags: ['certs', 'security']
+
+    - role: ufw_rules
+      tags: ['ufw', 'security']
+
+    - role: fail2ban
+      tags: ['fail2ban', 'security']
+
+- name: Manage Portainer Agent
+  # Targets Pis from static file AND VMs matched by the 'groups' logic
+  hosts: raspberry_pis, portainer_agents
+  gather_facts: false
+  become: true
+  roles:
+    - role: portainer_agent
+      tags: ['portainer_agent']

@@ -1,0 +1,72 @@
+---
+name: Ansible CI - ApexVirtual OnPrem
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+    paths:
+      - 'inventory/**'
+      - 'playbooks/**'
+      - 'roles/**'
+      - 'requirements.txt'
+      - 'requirements.yml'
+      - '.github/workflows/ansible-apexvirtual-ci.yaml'
+
+  pull_request:
+    branches:
+      - develop
+    paths:
+      - 'inventory/**'
+      - 'playbooks/**'
+      - 'roles/**'
+      - '.github/workflows/ansible-apexvirtual-ci.yaml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate-and-lint:
+    runs-on: ubuntu-latest
+    env:
+      ANSIBLE_CONFIG: ${{ github.workspace }}/ansible.cfg
+      ANSIBLE_HOST_KEY_CHECKING: false
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache Ansible and Pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.ansible/collections
+          key: ${{ runner.os }}-ansible-${{ hashFiles('**/requirements.txt', '**/requirements.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-ansible-
+
+      - name: Create and activate venv
+        run: python3 -m venv venv
+
+      - name: Install Ansible Dependencies
+        run: |
+          source venv/bin/activate
+          pip install -r requirements.txt
+          ansible-galaxy collection install -r requirements.yml
+
+      - name: Run ansible-lint
+        run: |
+          source venv/bin/activate
+          ansible-lint .
+
+      - name: Run Ansible Syntax Check
+        run: |
+          source venv/bin/activate
+          ansible-playbook playbooks/site.yml -i inventory/ci/ --syntax-check

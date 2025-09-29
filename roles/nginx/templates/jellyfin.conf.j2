@@ -1,0 +1,65 @@
+server {
+    listen 80;
+    listen [::]:80;
+    server_name jellyfin.lab.apexvirtual.internal;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name jellyfin.lab.apexvirtual.internal;
+
+    access_log /var/log/nginx/access.log stripsecrets;
+    error_log /var/log/nginx/error.log;
+
+    client_max_body_size 20M;
+
+    ssl_certificate /etc/letsencrypt/live/{{ cert_primary_domain }}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ cert_primary_domain }}/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/{{ cert_primary_domain }}/chain.pem;
+    ssl_stapling on;
+    ssl_stapling_verify on;
+
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Frame-Options "SAMEORIGIN";
+    add_header X-Content-Type-Options "nosniff";
+
+    set $jellyfin jellyfin;
+    resolver {{ resolver_ip | default('192.168.30.88') }} valid=30;
+
+    location / {
+        proxy_pass http://$jellyfin:8096;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Protocol $scheme;
+        proxy_set_header X-Forwarded-Host $http_host;
+        proxy_buffering off;
+    }
+
+    location = /web/ {
+        proxy_pass http://$jellyfin:8096/web/index.html;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Protocol $scheme;
+        proxy_set_header X-Forwarded-Host $http_host;
+    }
+
+    location /socket {
+        proxy_pass http://$jellyfin:8096;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Protocol $scheme;
+        proxy_set_header X-Forwarded-Host $http_host;
+    }
+}

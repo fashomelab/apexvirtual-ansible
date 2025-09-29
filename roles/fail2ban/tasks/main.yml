@@ -1,0 +1,49 @@
+---
+- name: Fetch Fail2ban configuration from HashiCorp Vault
+  ansible.builtin.set_fact:
+    fail2ban_config_vault: "{{ lookup('community.hashi_vault.vault_read', 'kv/data/apexvirtual/ansible-config/fail2ban')['data']['data'] }}"
+  no_log: true
+
+- name: Set Fail2ban facts from Vault data
+  ansible.builtin.set_fact:
+    fail2ban_destemail: "{{ fail2ban_config_vault.destemail }}"
+    fail2ban_sender: "{{ fail2ban_config_vault.sender }}"
+    fail2ban_custom_ignoreips: "{{ fail2ban_config_vault.custom_ignoreips }}"
+  no_log: true
+
+- name: Install fail2ban
+  ansible.builtin.apt:
+    name: fail2ban
+    state: present
+    update_cache: true
+  become: true
+
+- name: Deploy base jail defaults configuration
+  ansible.builtin.template:
+    src: jail.d/00-debian-defaults.local.j2
+    dest: /etc/fail2ban/jail.d/00-debian-defaults.local
+    mode: '0644'
+  notify: Restart fail2ban
+
+- name: Deploy enabled jail configuration
+  ansible.builtin.template:
+    src: "jail.d/{{ item }}.local.j2"
+    dest: "/etc/fail2ban/jail.d/{{ item }}.local"
+    mode: '0644'
+  loop: "{{ fail2ban_enabled_jails | default([]) }}"
+  notify: Restart fail2ban
+  when: fail2ban_enabled_jails is defined and fail2ban_enabled_jails | length > 0
+
+- name: Configure fail2ban.local main settings
+  ansible.builtin.template:
+    src: fail2ban.local.j2
+    dest: /etc/fail2ban/fail2ban.local
+    mode: '0644'
+  notify: Restart fail2ban
+
+- name: Ensure fail2ban service is running and enabled
+  ansible.builtin.service:
+    name: "{{ fail2ban_service_name | default('fail2ban') }}"
+    state: started
+    enabled: true
+  become: true

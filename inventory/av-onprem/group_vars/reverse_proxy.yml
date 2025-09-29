@@ -1,0 +1,90 @@
+---
+# ===================================================================
+# Ansible variables for hosts in the 'proxy' group
+# ===================================================================
+
+# Variables for the 'certbot' role
+cert_primary_domain: "lab.apexvirtual.internal"
+cert_alt_names: 
+  - "*.lab.apexvirtual.internal"
+cert_email: "apexvirtualadmin@gmail.com"
+
+# ===================================================================
+# Centralized Nginx Site Configuration Data
+# This list drives the creation of all reverse proxy config files.
+# ===================================================================
+nginx_sites:
+  - name: backup
+    server_name: "backup.lab.apexvirtual.internal"
+    template: "site.conf.j2" # Uses the default template
+    proxy_pass_url: "http://192.168.50.134"
+    is_websocket: true
+
+  - name: grafana-docker
+    server_name: "grafana.lab.apexvirtual.internal"
+    template: "site.conf.j2"
+    proxy_pass_url: "http://192.168.50.134:3000"
+    is_websocket: true
+
+  - name: jellyfin
+    server_name: "jellyfin.lab.apexvirtual.internal"
+    template: "jellyfin.conf.j2"
+    proxy_pass_url: "http://jellyfin:8096"
+    resolver_ip: "192.168.50.33"
+    client_max_body_size: "20M"
+
+  - name: kibana
+    server_name: "kibana-dashboard.lab.apexvirtual.internal"
+    template: "site.conf.j2"
+    proxy_pass_url: "http://192.168.30.123:5601"
+    is_websocket: true
+
+  - name: movie-request
+    server_name: "movie-request.lab.apexvirtual.internal"
+    template: "site.conf.j2"
+    proxy_pass_url: "http://192.168.50.131:5055"
+    is_websocket: true
+
+  - name: pihole1
+    server_name: "pihole.lab.apexvirtual.internal"
+    template: "site.conf.j2"
+    proxy_pass_url: "http://192.168.50.133"
+    is_websocket: false
+
+  - name: pihole2
+    server_name: "pihole2.lab.apexvirtual.internal"
+    template: "site.conf.j2"
+    proxy_pass_url: "http://192.168.50.130"
+    is_websocket: false
+
+  - name: proxmox
+    server_name: "proxmox.lab.apexvirtual.internal"
+    template: "site.conf.j2"
+    proxy_pass_url: "https://192.168.30.142:8006"
+    is_proxmox: true # Flag for special proxmox settings in the default template
+
+  - name: proxmox2
+    server_name: "proxmox2.lab.apexvirtual.internal"
+    template: "site.conf.j2"
+    proxy_pass_url: "https://172.30.20.143:8006"
+    is_proxmox: true
+
+  - name: proxmox3
+    server_name: "proxmox3.lab.apexvirtual.internal"
+    template: "site.conf.j2"
+    proxy_pass_url: "https://192.168.30.144:8006"
+    is_proxmox: true
+
+  - name: uptime-kuma
+    server_name: "uptime-kuma.lab.apexvirtual.internal"
+    template: "site.conf.j2"
+    proxy_pass_url: "http://192.168.30.131:3001"
+    is_websocket: true
+    
+  - name: vaultwarden
+    server_name: "locker.lab.apexvirtual.internal"
+    template: "vaultwarden.conf.j2" # Requires another specialized template
+    backend_servers:
+      - "192.168.30.113:30080"
+      - "192.168.30.114:30080"
+      - "192.168.30.115:30080"

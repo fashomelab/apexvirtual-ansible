@@ -1,0 +1,35 @@
+---
+- name: Update package cache (apt)
+  ansible.builtin.apt:
+    update_cache: true
+  when: ansible_pkg_mgr == 'apt'
+  register: update_system_apt_update_result
+
+- name: Upgrade all packages (apt)
+  ansible.builtin.apt:
+    upgrade: dist
+  when: ansible_pkg_mgr == 'apt'
+
+- name: Ensure apt-daily service is enabled for automatic updates
+  ansible.builtin.service:
+    name: apt-daily
+    state: started
+    enabled: true
+  when: ansible_pkg_mgr == 'apt'
+  become: true
+
+- name: Check if reboot is required (apt)
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+  register: update_system_reboot_required
+  when: ansible_pkg_mgr == 'apt'
+
+- name: Reboot the system if required (apt)
+  ansible.builtin.reboot:
+    msg: "Rebooting after package upgrade"
+    reboot_timeout: 300
+    test_command: /usr/bin/true
+  when:
+    - ansible_pkg_mgr == 'apt'
+    - update_system_reboot_required.stat.exists
+  register: update_system_reboot_result

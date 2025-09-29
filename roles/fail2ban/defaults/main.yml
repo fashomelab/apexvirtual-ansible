@@ -1,0 +1,16 @@
+# default values for fail2ban role
+fail2ban_enabled_jails:
+  - sshd
+
+# In seconds
+fail2ban_default_bantime: 600
+fail2ban_default_findtime: 600
+
+fail2ban_default_maxretry: 3
+fail2ban_loglevel: INFO
+fail2ban_logtarget: /var/log/fail2ban.log
+fail2ban_sshd_logpath: /var/log/auth.log
+
+# Email defaults (fallback if Vault not available)
+fail2ban_destemail: "admin@example.com"
+fail2ban_sender: "fail2ban@{{ ansible_fqdn }}"

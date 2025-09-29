@@ -1,0 +1,93 @@
+upstream vaultwarden_backend {
+    server 192.168.30.113:30080;
+    server 192.168.30.114:30080;
+    server 192.168.30.115:30080;
+    keepalive 32;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name vaultwarden.lab.apexvirtual.internal;
+
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name vaultwarden.lab.apexvirtual.internal;
+
+    ssl_certificate     /etc/letsencrypt/live/{{ cert_primary_domain }}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ cert_primary_domain }}/privkey.pem;
+    ssl_protocols       TLSv1.3;
+    ssl_prefer_server_ciphers on;
+    ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+    ssl_ecdh_curve      secp384r1;
+    ssl_session_timeout 1d;
+    ssl_session_cache   shared:SSL:10m;
+    ssl_session_tickets off;
+    ssl_stapling        on;
+    ssl_stapling_verify on;
+
+    resolver 8.8.8.8 8.8.4.4 valid=300s;
+    resolver_timeout 5s;
+
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
+    add_header X-Frame-Options "DENY";
+    add_header X-Content-Type-Options "nosniff";
+    add_header X-XSS-Protection "1; mode=block";
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; frame-ancestors 'none';";
+    add_header Referrer-Policy "strict-origin-when-cross-origin";
+    add_header Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=(), usb=(), gyroscope=(), accelerometer=()";
+
+    access_log /var/log/nginx/access.log;
+    error_log  /var/log/nginx/error.log;
+
+    location / {
+        proxy_pass http://vaultwarden_backend;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Port  $server_port;
+
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_buffering off;
+
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+        proxy_request_buffering off;
+
+        client_max_body_size 100M;
+
+        limit_req zone=general_limit burst=60 nodelay;
+        limit_req zone=login_limit burst=10 nodelay;
+    }
+
+    location /notifications/hub {
+        proxy_pass http://vaultwarden_backend;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade    $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_buffering off;
+
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+    }
+
+    location /admin {
+        deny all;
+    }
+
+    location ~ /\. {
+        deny all;
+    }
+}

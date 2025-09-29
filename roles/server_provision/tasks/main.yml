@@ -1,0 +1,7 @@
+# roles/server_provision/tasks/main.yml
+---
+- name: Install k3s-related packages
+  ansible.builtin.apt:
+    name: "{{ k3spackages }}"
+    state: present
+  become: true
